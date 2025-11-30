@@ -1,6 +1,6 @@
 #!/bin/bash
 
-npm install react-redux react-icons react-router-dom @reduxjs/toolkit tailwindcss @tailwindcss/vite antd framer-motion
+npm install react-redux react-icons react-router-dom @reduxjs/toolkit tailwindcss @tailwindcss/vite antd framer-motion axios react-toastify
 
 if ! grep -q "@tailwindcss/vite" vite.config.js; then
   sed -i '1s/^/import tailwindcss from "@tailwindcss\/vite";\n/' vite.config.js 2>/dev/null || sed -i '' '1s/^/import tailwindcss from "@tailwindcss\/vite";\n/' vite.config.js
@@ -8,6 +8,138 @@ if ! grep -q "@tailwindcss/vite" vite.config.js; then
 fi
 
 rm -f src/App.css
+mkdir -p src/utils
+mkdir -p src/features
+mkdir -p src/features/auth
+mkdir -p src/features/auth/pages
+mkdir -p src/features/auth/components
+mkdir -p src/features/auth/services
+mkdir -p src/features/auth/services/toolkit
+mkdir -p src/features/auth/services/apis
+mkdir -p src/features/auth/services/data
+mkdir -p src/globalComponents
+mkdir -p src/globalService
+mkdir -p src/globalComponents/btns
+mkdir -p src/globalComponents/design
+mkdir -p public/images
+mkdir -p public/videos
+mkdir -p public/icons
+mkdir -p .vscode
+
+cat <<EOF > src/utils/axiosInstance.js
+import axios from "axios";
+
+const axiosInstance = axios.create({
+  baseURL: import.meta.env.VITE_APP_BACKEND_URL,
+  withCredentials: true,
+});
+
+axiosInstance.interceptors.request.use(
+  (config) => {
+    config.withCredentials = true;
+    config.headers["Access-Control-Allow-Origin"] =
+      import.meta.env.VITE_APP_BACKEND_URL;
+    config.headers["Access-Control-Allow-Methods"] =
+      "GET,POST,PUT,DELETE,OPTIONS";
+    config.headers["Access-Control-Allow-Headers"] =
+      "Content-Type, Authorization";
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+axiosInstance.interceptors.response.use(
+  (response) => {
+    if (response?.headers?.location) {
+      window.location.href = response.headers.location;
+      return;
+    }
+    return response;
+  },
+  (error) => {
+    if (error?.response?.headers?.location) {
+      window.location.href = error.response.headers.location;
+      return;
+    }
+    return Promise.reject(error.response?.data || error);
+  }
+);
+
+export const apiRequest = async ({
+  method,
+  url,
+  data,
+  params,
+  headers,
+  baseURL,
+  withCredentials = true,
+}) => {
+  const instance = baseURL
+    ? axios.create({ baseURL, withCredentials })
+    : axiosInstance;
+
+  return instance({
+    method,
+    url,
+    data,
+    params,
+    headers,
+    withCredentials,
+  }).then((res) => res.data);
+};
+
+export default axiosInstance;
+EOF
+
+cat <<EOF > src/utils/formatUtils.js
+export const formatFileSize = (bytes) => {
+  if (!bytes) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return (bytes / Math.pow(1024, i)).toFixed(1) + " " + units[i];
+};
+
+export const formatDate = (dateString) => {
+  const options = {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "UTC",
+  };
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-US", options).replace(",", " |");
+};
+
+export const formatTime = (dateString) => {
+  const date = new Date(dateString);
+  return date.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
+
+export const formatRelativeTime = (dateString) => {
+  const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+  const diff = (new Date(dateString) - new Date()) / 1000;
+  const units = [
+    { sec: 60, name: "second" },
+    { sec: 3600, name: "minute" },
+    { sec: 86400, name: "hour" },
+    { sec: 604800, name: "day" },
+    { sec: 2592000, name: "week" },
+    { sec: 31536000, name: "month" },
+  ];
+  for (let i = units.length - 1; i >= 0; i--) {
+    if (Math.abs(diff) >= units[i].sec)
+      return rtf.format(Math.round(diff / units[i].sec), units[i].name);
+  }
+  return rtf.format(Math.round(diff), "second");
+};
+EOF
 
 cat <<EOF > src/index.css
 @import "tailwindcss";
@@ -75,16 +207,16 @@ body {
 }
 
 .custom-toast-container {
-  font-size: 1.8rem;
+  font-size: 1.2rem;
   line-height: 1.5;
 }
 
 .Toastify__toast {
   border-radius: 8px !important;
   font-weight: 500 !important;
-  font-size: 1.8rem !important;
+  font-size: 1.2rem !important;
   min-width: 500px !important;
-  padding: 1.5rem 1.5rem !important;
+  padding: 1rem 1rem !important;
 }
 
 .Toastify__toast--success {
@@ -191,6 +323,7 @@ EOF
 cat <<EOF > .env
 VITE_BASE_URL=/
 VITE_API_URL=http://localhost:5000/
+VITE_APP_BACKEND_URL=http://localhost:5000/backend
 EOF
 
 cat <<EOF > Dockerfile
@@ -214,3 +347,20 @@ dist
 Dockerfile
 npm-debug.log
 EOF
+
+touch src/features/auth/components/AuthMain.jsx
+touch src/features/auth/pages/Auth.jsx
+touch src/ProtectedRoute.jsx
+touch src/utils/Store.js
+touch src/Default.jsx
+touch src/AppRoutes.js
+touch src/features/auth/services/Payload.js
+touch src/features/auth/services/toolkit/AuthSlice.js
+touch src/features/auth/services/toolkit/AuthHandlers.js
+touch src/globalComponents/btns/ViewBtn.jsx
+touch src/globalComponents/Header.jsx
+touch src/globalComponents/Footer.jsx
+touch .vscode/settings.json
+touch src/globalService/GlobalSlice.js
+touch src/globalService/GlobalHandlers.js
+touch src/globalService/Data.js
