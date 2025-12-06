@@ -1,6 +1,6 @@
 #!/bin/bash
 
-npm install react-redux react-icons react-router-dom @reduxjs/toolkit tailwindcss @tailwindcss/vite antd framer-motion axios react-toastify
+npm install react-redux react-icons react-router-dom @reduxjs/toolkit tailwindcss @tailwindcss/vite antd framer-motion axios react-toastify react-markdown remark-gfm
 
 if ! grep -q "@tailwindcss/vite" vite.config.js; then
   sed -i '1s/^/import tailwindcss from "@tailwindcss\/vite";\n/' vite.config.js 2>/dev/null || sed -i '' '1s/^/import tailwindcss from "@tailwindcss\/vite";\n/' vite.config.js
@@ -25,6 +25,13 @@ mkdir -p public/images
 mkdir -p public/videos
 mkdir -p public/icons
 mkdir -p .vscode
+mkdir -p src/features/chatBot
+mkdir -p src/features/chatBot/components
+mkdir -p src/features/chatBot/pages
+mkdir -p src/features/chatBot/services
+mkdir -p src/features/chatBot/services/apis
+mkdir -p src/features/chatBot/services/data
+mkdir -p src/features/chatBot/services/toolkit
 
 cat <<EOF > src/utils/axiosInstance.js
 import axios from "axios";
@@ -349,13 +356,15 @@ npm-debug.log
 EOF
 
 touch src/features/auth/components/AuthMain.jsx
+touch src/features/auth/components/SignupMain.jsx
 touch src/features/auth/pages/Auth.jsx
+touch src/features/auth/pages/Signup.jsx
 touch src/ProtectedRoute.jsx
 touch src/utils/Store.js
 touch src/Default.jsx
 touch src/AppRoutes.js
 touch src/DefaultTable.jsx
-touch src/features/auth/services/Payload.js
+touch src/features/auth/services/AuthPayload.js
 touch src/features/auth/services/toolkit/AuthSlice.js
 touch src/features/auth/services/toolkit/AuthHandlers.js
 touch src/globalComponents/btns/ViewBtn.jsx
@@ -366,3 +375,8 @@ touch .vscode/settings.json
 touch src/globalService/GlobalSlice.js
 touch src/globalService/GlobalHandlers.js
 touch src/globalService/Data.js
+touch src/features/chatBot/components/ChatBotMain.jsx
+touch src/features/chatBot/pages/ChatBot.jsx
+touch src/features/chatBot/services/toolkit/ChatBotSlice.js
+touch src/features/chatBot/services/toolkit/ChatBotHandlers.js
+touch src/features/chatBot/services/ChatBotPayload.js

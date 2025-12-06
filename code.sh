@@ -18,7 +18,12 @@ cat > .vscode/settings.json << 'EOF'
     "uiElements": "components",
     "uiElement": "components",
     "widgets": "components",
-    "btns": "ui"
+    "btns": "ui",
+    "Bash":"robot",
+    "chat":"messages",
+    "Chat":"messages",
+    "ChatBot":"messages",
+    "chatBot":"messages",
   }
 }
 EOF
@@ -39,7 +44,7 @@ import { ToastContainer } from "react-toastify";
 
 const Layout = ({ children }) => {
   const { pathname } = useLocation();
-  const hideLayout = pathname === "/auth";
+  const hideLayout = ["/auth", "/signup"].includes(pathname);
 
   return (
     <div className="relative flex flex-col w-full min-h-screen">
@@ -77,16 +82,18 @@ EOF
 cat > src/AppRoutes.js << 'EOF'
 import Default from "./Default";
 import Auth from "./features/auth/pages/Auth";
+import Signup from "./features/auth/pages/Signup";
 
 const AppRoutes = [
   { path: "/auth", component: Auth },
+  { path: "/signup", component: Signup },
   { path: "/default", component: Default },
 ];
 
 export default AppRoutes;
 EOF
 
-cat > src/ProtectedRoute.js << 'EOF'
+cat > src/ProtectedRoute.jsx << 'EOF'
 /* eslint-disable no-unused-vars */
 /* eslint-disable react/prop-types */
 import React, { useEffect } from "react";
@@ -315,11 +322,13 @@ cat > src/utils/Store.js << 'EOF'
 import { configureStore } from "@reduxjs/toolkit";
 import authReducer from "../features/auth/services/toolkit/AuthSlice";
 import globalReducer from "../globalService/GlobalSlice";
+import chatBotReducer from "../features/chatBot/services/toolkit/ChatBotSlice";
 
 export const store = configureStore({
   reducer: {
     authApp: authReducer,
     globalApp: globalReducer,
+    chatBotApp: chatBotReducer,
   },
 });
 EOF
@@ -445,12 +454,13 @@ cat > src/Default.jsx << 'EOF'
 import React from "react";
 import { GiRobotGolem } from "react-icons/gi";
 import DefaultTable from "./DefaultTable";
+import ChatBot from "./features/chatBot/pages/ChatBot";
 
 const Default = () => {
   return (
     <>
       <div
-        className={`w-full h-screen px-32 bg-[#d7fff3] flex flex-col gap-8 items-center justify-center`}
+        className={`w-full h-screen px-32 bg-[#d7fff3] flex flex-col gap-12 items-center justify-center`}
       >
         <div className={`flex gap-8 items-center justify-center text-center`}>
           <GiRobotGolem
@@ -466,6 +476,7 @@ const Default = () => {
           />
         </div>
         {/* <DefaultTable /> */}
+        <ChatBot />
       </div>
     </>
   );
@@ -496,7 +507,7 @@ const DefaultTable = () => {
       header: "Created On",
       accessor: (row) => (
         <div className="flex items-center gap-4">
-          <p className="text-2xl text-[#888888] font-normal">
+          <p className="text-xl text-[#888888] font-normal">
             {formatDate(row.created_on)}
           </p>
         </div>
@@ -689,8 +700,7 @@ const Header = () => {
                   <div
                     key={e.id}
                     className="relative cursor-pointer"
-                    onMouseEnter={() => setIsDropdownOpen(e.id)}
-                    onMouseLeave={() => setIsDropdownOpen(null)}
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen ? e.id : null)}
                   >
                     <span
                       className={`navlink border-b pb-2 border-none text-xl text-white max-md:text-xl font-semibold  transition-all duration-200 navlink tracking-[0] hover:opacity-50`}
@@ -886,204 +896,242 @@ import { useDispatch, useSelector } from "react-redux";
 import { motion } from "framer-motion";
 import {
   setUserMode,
-  setSelectRole,
-  setCreateUsername,
   setPassword,
   setUsername,
-  setCreateEmail,
-  setCreatePassword,
 } from "../services/toolkit/AuthSlice";
 import { useNavigate } from "react-router-dom";
 import ViewBtn from "../../../globalComponents/btns/ViewBtn";
 import { FaCircleUser } from "react-icons/fa6";
-import { handleLogin, handleSignup } from "../services/toolkit/AuthHandlers";
+import { handleLogin } from "../services/toolkit/AuthHandlers";
 import { TbLoader2 } from "react-icons/tb";
 
 const AuthMain = () => {
   const dispatch = useDispatch();
   const {
-    userMode,
-    selectRole,
     isLogin,
-    isSignup,
     username,
     password,
-    createUsername,
-    createEmail,
-    createPassword,
   } = useSelector((state) => state.authApp);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const savedMode = localStorage.getItem("authUserMode");
-    if (savedMode) dispatch(setUserMode(savedMode));
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("authUserMode", userMode);
-  }, [userMode]);
-
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-[#93c4d0]">
       <div className="absolute inset-0 mt-0 flex items-center justify-center">
-        {userMode === "login" ? (
-          <motion.div
-            initial={{ scale: 0.5, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-            className="backdrop-blur-sm bg-white rounded-3xl shadow-2xl 
+        <motion.div
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="backdrop-blur-sm bg-white rounded-3xl shadow-2xl 
             px-14 py-14 w-[35vw] flex flex-col gap-10"
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.5 }}
+            className="flex items-center justify-center gap-4"
           >
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.5 }}
-              className="flex items-center justify-center gap-4"
+            <FaCircleUser
+              size={50}
+              className={`text-[#2957a2] shadow-xl rounded-full`}
+            />
+            <h2 className="font-semibold text-4xl text-[#111B69] italic">
+              User Login
+            </h2>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.7 }}
+            className="flex flex-col gap-6 w-full"
+          >
+            <label
+              htmlFor="username"
+              className="text-2xl font-bold text-[#37468a] tracking-wide flex items-center gap-[1.2rem]"
             >
-              <FaCircleUser
-                size={50}
-                className={`text-[#2957a2] shadow-xl rounded-full`}
-              />
-              <h2 className="font-semibold text-4xl text-[#111B69] italic">
-                User Login
-              </h2>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.7 }}
-              className="flex flex-col gap-6 w-full"
+              <div className="w-12 h-12 rounded-full bg-[#dfe6ff] flex items-center justify-center shadow-md">
+                <i className="fa-solid fa-user-tie text-[#37468a] text-2xl" />
+              </div>
+              Username
+            </label>
+            <input
+              type="text"
+              id="username"
+              value={username}
+              onChange={(e) => {
+                dispatch(setUsername(e.target.value));
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !isLogin) {
+                  dispatch(handleLogin({ username, password }));
+                }
+              }}
+              required
+              autoComplete="off"
+              placeholder="Enter your username"
+              className={`w-full px-8 py-4 rounded-2xl bg-white/90 border-2 border-[#b5c4ff] text-xl font-semibold text-[#2b2b2b] focus:border-[#1b275b] focus:shadow-lg transition-all duration-300 outline-none ${
+                isLogin ? "cursor-not-allowed" : ""
+              }`}
+            />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 1.0 }}
+            className="flex flex-col gap-6 w-full"
+          >
+            <label
+              htmlFor="password"
+              className="text-2xl font-bold text-[#37468a] tracking-wide flex items-center gap-[1.2rem]"
             >
-              <label
-                htmlFor="username"
-                className="text-2xl font-bold text-[#37468a] tracking-wide flex items-center gap-[1.2rem]"
-              >
-                <div className="w-12 h-12 rounded-full bg-[#dfe6ff] flex items-center justify-center shadow-md">
-                  <i className="fa-solid fa-user-tie text-[#37468a] text-2xl" />
-                </div>
-                Username
-              </label>
+              <div className="w-12 h-12 rounded-full bg-[#dfe6ff] flex items-center justify-center shadow-md">
+                <i className="fa-solid fa-key text-[#37468a] text-2xl" />
+              </div>
+              Password
+            </label>
+            <div className="relative w-full">
               <input
-                type="text"
-                id="username"
-                value={username}
+                type={showPassword ? "text" : "password"}
+                id="password"
+                required
+                autoComplete="off"
+                value={password}
                 onChange={(e) => {
-                  dispatch(setUsername(e.target.value));
+                  dispatch(setPassword(e.target.value));
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !isLogin) {
                     dispatch(handleLogin({ username, password }));
                   }
                 }}
-                required
-                autoComplete="off"
-                placeholder="Enter your username"
+                placeholder="Enter your password"
                 className={`w-full px-8 py-4 rounded-2xl bg-white/90 border-2 border-[#b5c4ff] text-xl font-semibold text-[#2b2b2b] focus:border-[#1b275b] focus:shadow-lg transition-all duration-300 outline-none ${
                   isLogin ? "cursor-not-allowed" : ""
                 }`}
               />
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 1.0 }}
-              className="flex flex-col gap-6 w-full"
-            >
-              <label
-                htmlFor="password"
-                className="text-2xl font-bold text-[#37468a] tracking-wide flex items-center gap-[1.2rem]"
+              <div
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-6 top-1/2 -translate-y-1/2 cursor-pointer text-xl text-[#37468a]"
               >
-                <div className="w-12 h-12 rounded-full bg-[#dfe6ff] flex items-center justify-center shadow-md">
-                  <i className="fa-solid fa-key text-[#37468a] text-2xl" />
-                </div>
-                Password
-              </label>
-              <div className="relative w-full">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  id="password"
-                  required
-                  autoComplete="off"
-                  value={password}
-                  onChange={(e) => {
-                    dispatch(setPassword(e.target.value));
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !isLogin) {
-                      dispatch(handleLogin({ username, password }));
-                    }
-                  }}
-                  placeholder="Enter your password"
-                  className={`w-full px-8 py-4 rounded-2xl bg-white/90 border-2 border-[#b5c4ff] text-xl font-semibold text-[#2b2b2b] focus:border-[#1b275b] focus:shadow-lg transition-all duration-300 outline-none ${
-                    isLogin ? "cursor-not-allowed" : ""
+                <i
+                  className={`fa-solid ${
+                    showPassword ? "fa-eye" : "fa-eye-slash"
                   }`}
-                />
-                <div
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-6 top-1/2 -translate-y-1/2 cursor-pointer text-xl text-[#37468a]"
-                >
-                  <i
-                    className={`fa-solid ${
-                      showPassword ? "fa-eye" : "fa-eye-slash"
-                    }`}
-                  ></i>
-                </div>
+                ></i>
               </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 1.3 }}
-              className="w-full"
-            >
-              <ViewBtn
-                btnTitle={
-                  isLogin ? (
-                    <div className="flex items-center justify-center">
-                      <TbLoader2 size={30} className={`text-white`} />
-                    </div>
-                  ) : (
-                    `Login`
-                  )
-                }
-                btnFunc={() => dispatch(handleLogin({ username, password }))}
-                disabled={isLogin}
-                view={`full`}
-                btnType={`Login`}
-              />
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.1, delay: 0.2 }}
-              className={`flex items-center gap-2 justify-center`}
-            >
-              <h2 className={`text-xl text-[#212121] font-semibold`}>
-                Not registered yet?
-              </h2>
-              <span
-                onClick={
-                  isLogin
-                    ? undefined
-                    : () => {
-                        dispatch(setUserMode("signup"));
-                      }
-                }
-                className={`text-[#543b7e] font-semibold text-xl underline cursor-pointer ${
-                  isLogin ? "pointer-events-none opacity-60" : ""
-                }`}
-                tabIndex={isLogin ? -1 : 0}
-                aria-disabled={isLogin}
-              >
-                Signup now
-              </span>
-            </motion.div>
+            </div>
           </motion.div>
-        ) : userMode === "signup" ? (
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 1.3 }}
+            className="w-full"
+          >
+            <ViewBtn
+              btnTitle={
+                isLogin ? (
+                  <div className="flex items-center justify-center">
+                    <TbLoader2 size={30} className={`text-white`} />
+                  </div>
+                ) : (
+                  `Login`
+                )
+              }
+              btnFunc={() => dispatch(handleLogin({ username, password }))}
+              disabled={isLogin}
+              view={`full`}
+              btnType={`Login`}
+            />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.1, delay: 0.2 }}
+            className={`flex items-center gap-2 justify-center`}
+          >
+            <h2 className={`text-xl text-[#212121] font-semibold`}>
+              Not registered yet?
+            </h2>
+            <span
+              onClick={
+                isLogin
+                  ? undefined
+                  : () => {
+                      navigate("/signup")
+                    }
+              }
+              className={`text-[#543b7e] font-semibold text-xl underline cursor-pointer ${
+                isLogin ? "pointer-events-none opacity-60" : ""
+              }`}
+              tabIndex={isLogin ? -1 : 0}
+              aria-disabled={isLogin}
+            >
+              Signup now
+            </span>
+          </motion.div>
+        </motion.div>
+      </div>
+    </div>
+  );
+};
+
+export default AuthMain;
+EOF
+
+cat > src/features/auth/pages/Signup.jsx << 'EOF'
+/* eslint-disable no-unused-vars */
+import React from "react";
+import SignupMain from "../components/SignupMain";
+
+const Signup = () => {
+  return (
+    <>
+      <div className={`relative w-full h-full`}>
+        <SignupMain />
+      </div>
+    </>
+  );
+};
+
+export default Signup;
+EOF
+
+cat > src/features/auth/components/SignupMain.jsx << 'EOF'
+/* eslint-disable no-unused-vars */
+import React, { useEffect, useRef, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { motion } from "framer-motion";
+import {
+  setUserMode,
+  setSelectRole,
+  setCreateUsername,
+  setCreateEmail,
+  setCreatePassword,
+} from "../services/toolkit/AuthSlice";
+import { useNavigate } from "react-router-dom";
+import ViewBtn from "../../../globalComponents/btns/ViewBtn";
+import { FaCircleUser } from "react-icons/fa6";
+import { handleSignup } from "../services/toolkit/AuthHandlers";
+import { TbLoader2 } from "react-icons/tb";
+
+const SignupMain = () => {
+  const dispatch = useDispatch();
+  const { selectRole, isSignup, createUsername, createEmail, createPassword } =
+    useSelector((state) => state.authApp);
+  const [showPassword, setShowPassword] = useState(false);
+  const navigate = useNavigate();
+
+  return (
+    <>
+      <div
+        className={`relative w-screen h-screen overflow-hidden bg-[#93c4d0]`}
+      >
+        <div
+          className={`absolute inset-0 mt-0 flex items-center justify-center`}
+        >
           <motion.div
             initial={{ scale: 0.5, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -1327,9 +1375,6 @@ const AuthMain = () => {
                 Already have account?
               </h2>
               <span
-                onClick={() => {
-                  dispatch(setUserMode("login"));
-                }}
                 className="text-[#212121] font-semibold text-xl cursor-pointer"
               >
                 Back to
@@ -1339,7 +1384,7 @@ const AuthMain = () => {
                   isSignup
                     ? undefined
                     : () => {
-                        dispatch(setUserMode("login"));
+                        navigate("/auth");
                       }
                 }
                 className={`text-[#543b7e] font-semibold text-xl underline cursor-pointer ${
@@ -1352,13 +1397,13 @@ const AuthMain = () => {
               </span>
             </motion.div>
           </motion.div>
-        ) : null}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
-export default AuthMain;
+export default SignupMain;
 EOF
 
 cat > src/globalService/Data.js << 'EOF'
