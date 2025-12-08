@@ -27,3 +27,13 @@ touch README.md
 touch dockerfile
 touch .dockerignore
 touch .gitignore
+
+cat > features/app/main.py << 'EOF'
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/")
+def home():
+    return {"data": "Hello world"}
+EOF
