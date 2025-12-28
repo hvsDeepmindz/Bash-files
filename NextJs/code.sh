@@ -96,7 +96,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 }
 EOF
 
-cat > src/app/global.css << 'EOF'
+cat > src/app/globals.css << 'EOF'
 @import "tailwindcss";
 
 @layer utilities {
